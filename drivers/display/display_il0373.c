@@ -389,7 +389,7 @@ static int il0373_controller_init(struct device *dev)
 	LOG_INF("EPD Panel settings");
 	tmp[0] = 0xbf;
 	tmp[1] = 0x0d; // VCOM to 0V fast
-	err = il0373_write_cmd(driver, IL0373_CMD_PANEL_SETTING, tmp, 1);
+	err = il0373_write_cmd(driver, IL0373_CMD_PANEL_SETTING, tmp, 2);
 	if (err < 0) {
 		return err;
 	}
@@ -404,8 +404,8 @@ static int il0373_controller_init(struct device *dev)
 
 	LOG_INF("EPD Resolution");
 	tmp[0] = EPD_PANEL_WIDTH;
-	tmp[2] = EPD_PANEL_HEIGHT >> 8;
-	tmp[3] = EPD_PANEL_HEIGHT & 0xff;
+	tmp[1] = EPD_PANEL_HEIGHT >> 8;
+	tmp[2] = EPD_PANEL_HEIGHT & 0xff;
 	err = il0373_write_cmd(driver, IL0373_CMD_RESOLUTION, tmp, 3);
 	if (err < 0) {
 		return err;
