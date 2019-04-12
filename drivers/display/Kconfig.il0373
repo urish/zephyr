@@ -1,0 +1,29 @@
+# Kconfig - IL0373 display controller configuration options
+
+#
+# Copyright (c) 2019 Michel Heily <michel.heily@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig IL0373
+    bool "IL0373 display driver"
+    depends on SPI
+    help
+      Enable driver for IL0373 display driver.
+
+if IL0373
+
+choice
+    prompt "EPD display"
+    default IL0373_EPD_GDEW029T5
+    help
+      Specify the type of EPD connected to the IL0373 controller.
+
+config IL0373_EPD_GDEW029T5
+    bool
+    prompt "Good Display GDEW029T5"
+
+endchoice
+
+endif #IL0373

@@ -27,6 +27,8 @@ source "drivers/display/Kconfig.ssd1306"
 
 source "drivers/display/Kconfig.ssd1673"
 
+source "drivers/display/Kconfig.il0373"
+
 source "drivers/display/Kconfig.dummy"
 
 endif # DISPLAY
