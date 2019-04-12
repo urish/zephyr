@@ -42,7 +42,6 @@ struct il0373_data {
 #define SENDING_COMMAND(driver) gpio_pin_write((driver)->dc, DT_GD_IL0373_0_DC_GPIOS_PIN, 0)
 #define SENDING_DATA(driver) 	gpio_pin_write((driver)->dc, DT_GD_IL0373_0_DC_GPIOS_PIN, 1)
 
-
 static inline int il0373_write_cmd(struct il0373_data *driver,
 				    u8_t cmd, u8_t *data, size_t len)
 {
@@ -121,13 +120,6 @@ static int il0373_write(const struct device *dev, const u16_t x,
 {
 	struct il0373_data *driver = dev->driver_data;
 	int err;
-	u16_t x_start;
-	u16_t x_end;
-	u16_t y_start;
-	u16_t y_end;
-	u8_t tmp[7] = {0};
-	int i;
-	static int first = 0;
 
 	if (desc->pitch < desc->width) {
 		LOG_ERR("Pitch is smaller than width");
@@ -168,27 +160,6 @@ static int il0373_write(const struct device *dev, const u16_t x,
 
 
 	LOG_INF("write request, x=%d, y=%d, buf_size=%d", x, y, desc->buf_size);
-
-	// tmp[0] = x & 0xff;
-	// tmp[1] = ((x_end -1) | 0x7) & 0xff;
-	// tmp[2] = (y >> 8) & 0xff;
-	// tmp[3] = y & 0xff;
-	// tmp[4] = ((y_end -1) >> 8) & 0xff;
-	// tmp[5] = (y_end -1) & 0xff;
-	// tmp[6] = 0x01;
-	// err = il0373_write_cmd(driver, IL0373_CMD_PARTIAL_WINDOW, tmp, 7);
-	// if (err < 0) {
-	// 	return err;
-	// }
-	if (!first)
-	{
-		first = 1;
-		for (i=0; i < desc->buf_size; ++i)
-		{
-			printf("%x", ((char*)buf)[i]);
-		}
-	}
-
 
 	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, (u8_t *)buf, desc->buf_size);
 	if (err < 0) {
