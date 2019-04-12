@@ -188,8 +188,8 @@ static int il0373_write(const struct device *dev, const u16_t x,
 			printf("%x", ((char*)buf)[i]);
 		}
 	}
-	
-	
+
+
 	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, (u8_t *)buf, desc->buf_size);
 	if (err < 0) {
 		return err;
