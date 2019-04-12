@@ -161,7 +161,18 @@ static int il0373_write(const struct device *dev, const u16_t x,
 
 	LOG_INF("write request, x=%d, y=%d, buf_size=%d", x, y, desc->buf_size);
 
-	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, (u8_t *)buf, desc->buf_size);
+	u8_t transposed_buf[EPD_PANEL_WIDTH * EPD_PANEL_HEIGHT / 8] = { 0 };
+	for (size_t y = 0; y < EPD_PANEL_HEIGHT; y++) {
+		for (size_t x = 0; x < EPD_PANEL_WIDTH; x++) {
+		        size_t bitmap_idx = (y / 8) * EPD_PANEL_WIDTH + x;
+		        u8_t bit = 7 - (y % 8);
+			if (((u8_t*)buf)[bitmap_idx] & (1 << bit)) {
+				transposed_buf[((EPD_PANEL_WIDTH - 1 - x) * EPD_PANEL_HEIGHT + y) / 8] |= 1 << (7 - (y % 8));
+			}
+		}
+	}
+
+	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, transposed_buf, desc->buf_size);
 	if (err < 0) {
 		return err;
 	}
@@ -374,9 +385,9 @@ static int il0373_controller_init(struct device *dev)
 
 
 	LOG_INF("EPD Resolution");
-	tmp[0] = EPD_PANEL_WIDTH;
-	tmp[1] = EPD_PANEL_HEIGHT >> 8;
-	tmp[2] = EPD_PANEL_HEIGHT & 0xff;
+	tmp[0] = EPD_PANEL_HEIGHT;
+	tmp[1] = EPD_PANEL_WIDTH >> 8;
+	tmp[2] = EPD_PANEL_WIDTH & 0xff;
 	err = il0373_write_cmd(driver, IL0373_CMD_RESOLUTION, tmp, 3);
 	if (err < 0) {
 		return err;
