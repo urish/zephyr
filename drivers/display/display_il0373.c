@@ -106,8 +106,6 @@ static int il0373_update_display(const struct device *dev)
 		return err;
 	}
 
-	k_sleep(50);
-
 	il0373_busy_wait(driver);
 
 	return 0;
@@ -161,7 +159,8 @@ static int il0373_write(const struct device *dev, const u16_t x,
 
 	LOG_INF("write request, x=%d, y=%d, buf_size=%d", x, y, desc->buf_size);
 
-	u8_t transposed_buf[EPD_PANEL_WIDTH * EPD_PANEL_HEIGHT / 8] = { 0 };
+	static u8_t transposed_buf[EPD_PANEL_WIDTH * EPD_PANEL_HEIGHT / 8] = { 0 };
+	memset(transposed_buf, 0, sizeof(transposed_buf));
 	for (size_t y = 0; y < EPD_PANEL_HEIGHT; y++) {
 		for (size_t x = 0; x < EPD_PANEL_WIDTH; x++) {
 		        size_t bitmap_idx = (y / 8) * EPD_PANEL_WIDTH + x;
@@ -172,7 +171,7 @@ static int il0373_write(const struct device *dev, const u16_t x,
 		}
 	}
 
-	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, transposed_buf, desc->buf_size);
+	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, transposed_buf, sizeof(transposed_buf));
 	if (err < 0) {
 		return err;
 	}
