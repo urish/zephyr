@@ -27,6 +27,8 @@
 #define IL0373_CMD_RESOLUTION            0x61
 #define IL0373_CMD_VCM_DC_SETTING        0x82
 #define IL0373_CMD_PARTIAL_WINDOW        0x90
+#define IL0373_CMD_PARTIAL_IN            0x91
+#define IL0373_CMD_PARTIAL_OUT           0x92
 
 
-#endif
+#endif

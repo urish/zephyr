@@ -112,6 +112,27 @@ static int il0373_update_display(const struct device *dev)
 	return 0;
 }
 
+static int set_partial_ram_area(struct il0373_data *driver, u16_t x,
+	const u16_t y,
+	const u16_t w,
+	const u16_t h)
+	{
+		u8_t tmp[7];
+		u16_t x_end = (x + w - 1);
+		u16_t y_end = y + h - 1;
+		x &= 0xFFF8;
+			
+
+		tmp[0] = x % 256;
+		tmp[1] = x_end % 256;
+		tmp[2] = y / 256;
+		tmp[3] = y % 256;
+		tmp[4] = y_end / 256;
+		tmp[5] = y_end % 256;
+		tmp[6] = 0x01;
+		return il0373_write_cmd(driver, IL0373_CMD_PARTIAL_WINDOW, tmp, 7);
+	}
+
 static int il0373_write(const struct device *dev, const u16_t x,
 			 const u16_t y,
 			 const struct display_buffer_descriptor *desc,
@@ -172,7 +193,22 @@ static int il0373_write(const struct device *dev, const u16_t x,
 		}
 	}
 
+	err = il0373_write_cmd(driver, IL0373_CMD_PARTIAL_IN, NULL, 0);
+	if (err < 0) {
+		return err;
+	}
+
+	err = set_partial_ram_area(driver, y, x , desc->height, desc->width);
+	if (err < 0) {
+		return err;
+	}
+
 	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, transposed_buf, sizeof(transposed_buf));
+	if (err < 0) {
+		return err;
+	}
+
+	err = il0373_write_cmd(driver, IL0373_CMD_PARTIAL_OUT, NULL, 0);
 	if (err < 0) {
 		return err;
 	}
@@ -300,6 +336,48 @@ static int il0373_send_lut(struct il0373_data *driver, u8_t lut_id, u8_t b0, u8_
 	u8_t lut_data[] = {
 		b0, 0x08, 0x00, 0x00, 0x00, 0x02, b6, 0x28, 0x28, 0x00, 0x00, 0x01,
 		b0, 0x14, 0x00, 0x00, 0x00, 0x01, b18, 0x12, 0x12, 0x00, 0x00, 0x01
+  	};
+
+	err = il0373_write_cmd(driver, lut_id, NULL, 0);
+	if (err < 0) {
+		return err;
+	}
+
+	sbuf.buf = lut_data;
+	sbuf.len = sizeof(lut_data);
+	SENDING_DATA(driver);
+	err = spi_write(driver->spi_dev, &driver->spi_config, &buf_set);
+	if (err < 0) {
+		return err;
+	}
+
+	u8_t zero = 0;
+	sbuf.buf = &zero;
+	sbuf.len = 1;
+
+	SENDING_DATA(driver);
+	for (i = 0; i < padding; ++i) {
+		err = spi_write(driver->spi_dev, &driver->spi_config, &buf_set);
+		if (err < 0) {
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int il0373_send_lut_partial(struct il0373_data *driver, u8_t lut_id, u8_t b0)
+{
+	struct spi_buf sbuf;
+	struct spi_buf_set buf_set = {.buffers = &sbuf, .count = 1};
+	int err;
+	int i;
+
+	u8_t padding = (lut_id == 0x20) ? 20 : 18;
+
+	u8_t lut_data[] = {
+		b0, 0x20, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
   	};
 
 	err = il0373_write_cmd(driver, lut_id, NULL, 0);
@@ -466,6 +544,62 @@ static int init_full(struct il0373_data *driver)
 	return power_on(driver);
 }
 
+static int init_partial(struct il0373_data *driver)
+{
+	int err;
+	u8_t tmp[6];
+
+	err = init_display(driver);
+	if (err < 0) {
+		return err;
+	}
+
+
+	tmp[0] = 0x08;
+	err = il0373_write_cmd(driver, IL0373_CMD_VCM_DC_SETTING, tmp, 1);
+	if (err < 0) {
+		return err;
+	}
+
+	tmp[0] = 0x17;
+	err = il0373_write_cmd(driver, IL0373_CMD_CDI, tmp, 1);
+	if (err < 0) {
+		return err;
+	}
+
+
+	// il0373_set_orientation_internall(driver);
+
+	/* send partial lut */
+	LOG_INF("EPD Sending lut");
+	err = il0373_send_lut_partial(driver, 0x20, 0x00);
+	if (err < 0) {
+		return err;
+	}
+
+	err = il0373_send_lut_partial(driver, 0x21, 0x00);
+	if (err < 0) {
+		return err;
+	}
+
+	err = il0373_send_lut_partial(driver, 0x22, 0x80);
+	if (err < 0) {
+		return err;
+	}
+
+	err = il0373_send_lut_partial(driver, 0x23, 0x40);
+	if (err < 0) {
+		return err;
+	}
+
+	err = il0373_send_lut_partial(driver, 0x24, 0x00);
+	if (err < 0) {
+		return err;
+	}
+
+	return power_on(driver);
+}
+
 static int il0373_controller_init(struct device *dev)
 {
 	int err;
@@ -473,7 +607,7 @@ static int il0373_controller_init(struct device *dev)
 
 	LOG_INF("EPD width=%d height=%d", EPD_PANEL_WIDTH, EPD_PANEL_HEIGHT);
 
-	err = init_full(driver);
+	err = init_partial(driver);
 
 	if (err < 0) {
 		return err;
