@@ -42,6 +42,7 @@ struct il0373_data {
 #define SENDING_COMMAND(driver) gpio_pin_write((driver)->dc, DT_GD_IL0373_0_DC_GPIOS_PIN, 0)
 #define SENDING_DATA(driver) 	gpio_pin_write((driver)->dc, DT_GD_IL0373_0_DC_GPIOS_PIN, 1)
 
+
 static inline int il0373_write_cmd(struct il0373_data *driver,
 				    u8_t cmd, u8_t *data, size_t len)
 {
@@ -329,20 +330,39 @@ static int il0373_send_lut(struct il0373_data *driver, u8_t lut_id, u8_t b0, u8_
 	return 0;
 }
 
-static int il0373_controller_init(struct device *dev)
+static void reset(struct il0373_data *driver)
 {
-	int err;
-	u8_t tmp[6];
-	struct il0373_data *driver = dev->driver_data;
-
-	LOG_INF("EPD width=%d height=%d", EPD_PANEL_WIDTH, EPD_PANEL_HEIGHT);
-
 	LOG_INF("EPD Reset");
 
 	gpio_pin_write(driver->reset, DT_GD_IL0373_0_RESET_GPIOS_PIN, 0);
 	k_sleep(20);
 	gpio_pin_write(driver->reset, DT_GD_IL0373_0_RESET_GPIOS_PIN, 1);
 	k_sleep(20);
+}
+
+static int power_on(struct il0373_data *driver)
+{
+	int err;
+	LOG_INF("EPD PowerOn");
+
+	err = il0373_write_cmd(driver, IL0373_CMD_POWER_ON, NULL, 0);
+	if (err < 0) {
+		return err;
+	}
+
+	il0373_busy_wait(driver);
+	
+	return 0;
+}
+
+static int init_display(struct il0373_data *driver)
+{
+	int err;
+	u8_t tmp[6];
+
+	LOG_INF("EPD width=%d height=%d", EPD_PANEL_WIDTH, EPD_PANEL_HEIGHT);
+
+	reset(driver);
 
 	LOG_INF("EPD Power settings");
 
@@ -387,10 +407,19 @@ static int il0373_controller_init(struct device *dev)
 	tmp[0] = EPD_PANEL_HEIGHT;
 	tmp[1] = EPD_PANEL_WIDTH >> 8;
 	tmp[2] = EPD_PANEL_WIDTH & 0xff;
-	err = il0373_write_cmd(driver, IL0373_CMD_RESOLUTION, tmp, 3);
+	return il0373_write_cmd(driver, IL0373_CMD_RESOLUTION, tmp, 3);
+}
+
+static int init_full(struct il0373_data *driver)
+{
+	int err;
+	u8_t tmp[6];
+
+	err = init_display(driver);
 	if (err < 0) {
 		return err;
 	}
+
 
 	tmp[0] = 0x08;
 	err = il0373_write_cmd(driver, IL0373_CMD_VCM_DC_SETTING, tmp, 1);
@@ -434,14 +463,21 @@ static int il0373_controller_init(struct device *dev)
 		return err;
 	}
 
-	LOG_INF("EPD PowerOn");
+	return power_on(driver);
+}
 
-	err = il0373_write_cmd(driver, IL0373_CMD_POWER_ON, NULL, 0);
+static int il0373_controller_init(struct device *dev)
+{
+	int err;
+	struct il0373_data *driver = dev->driver_data;
+
+	LOG_INF("EPD width=%d height=%d", EPD_PANEL_WIDTH, EPD_PANEL_HEIGHT);
+
+	err = init_full(driver);
+
 	if (err < 0) {
 		return err;
 	}
-
-	il0373_busy_wait(driver);
 
 	return il0373_clear_and_write_buffer(dev);
 }
