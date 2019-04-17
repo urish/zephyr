@@ -286,7 +286,11 @@ static int il0373_clear_and_write_buffer(struct device *dev)
 	struct spi_buf_set buf_set = {.buffers = &sbuf, .count = 1};
 	struct il0373_data *driver = dev->driver_data;
 
-	err = il0373_write_cmd(driver, IL0373_CMD_DTM1, NULL, 0);
+
+	static u8_t buf[EPD_PANEL_WIDTH * EPD_PANEL_HEIGHT / 8] = { 0 };
+	memset(buf, 0, sizeof(buf));
+
+	err = il0373_write_cmd(driver, IL0373_CMD_DTM1, buf, sizeof(buf));
 	if (err < 0) {
 		return err;
 	}
@@ -302,6 +306,7 @@ static int il0373_clear_and_write_buffer(struct device *dev)
 		}
 	}
 
+	
 	err = il0373_write_cmd(driver, IL0373_CMD_DTM2, NULL, 0);
 	if (err < 0) {
 		return err;
